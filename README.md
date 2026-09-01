@@ -36,7 +36,7 @@ collection or labeling was required.
 
 ## Project Structure
 
-\```
+
 briefgov/
 ├── data/           # dataset (not tracked in git — see .gitignore)
 ├── notebooks/       # exploratory analysis
@@ -46,7 +46,7 @@ briefgov/
 ├── results/         # evaluation outputs, plots, logs
 ├── requirements.txt
 └── README.md
-\```
+
 
 ## Status
 
