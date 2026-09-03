@@ -136,7 +136,7 @@ source/target pairs):
   documentation into the record, conclude the public hearing, and..."*),
   reflecting how government meeting minutes are actually recorded. The
   fine-tuned model correctly adopts this style rather than producing
-  free-form plain-English summaries — this is expected behavior given the
+  free-form plain-English summaries - this is expected behavior given the
   training data, not a defect.
 - **Evaluation scope**: results above are on chunk-level source/target pairs
   (the same unit the model was trained on), not full raw transcripts. This
