@@ -1,4 +1,4 @@
-# 🏛️ BriefGov — Government Meeting Summarizer
+# 🏛️ BriefGov - Government Meeting Summarizer
 
 BriefGov is an abstractive text summarization system for government meeting
 transcripts. It fine-tunes a BART model on the [MeetingBank](https://huggingface.co/datasets/huuuyeah/meetingbank)
