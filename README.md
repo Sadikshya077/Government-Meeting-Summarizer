@@ -1,11 +1,16 @@
-# BriefGov — Government Meeting Summarizer
+# 🏛️ BriefGov — Government Meeting Summarizer
 
 BriefGov is an abstractive text summarization system for government meeting
 transcripts. It fine-tunes a BART model on the [MeetingBank](https://huggingface.co/datasets/huuuyeah/meetingbank)
 dataset to generate concise summaries of city council and public meeting
-transcripts, served through a FastAPI backend with a simple browser UI.
+transcripts, served through a FastAPI backend with a simple browser UI. 🎤➡️📝
 
-## Overview
+![Python](https://img.shields.io/badge/Python-3.12-blue)
+![Transformers](https://img.shields.io/badge/🤗%20Transformers-BART-yellow)
+![FastAPI](https://img.shields.io/badge/FastAPI-backend-teal)
+![ROUGE--1](https://img.shields.io/badge/ROUGE--1-41.93-brightgreen)
+
+## 📋 Overview
 
 - **Task**: abstractive summarization of long government meeting transcripts
 - **Model**: `facebook/bart-base`, fine-tuned on MeetingBank
@@ -13,7 +18,7 @@ transcripts, served through a FastAPI backend with a simple browser UI.
   fine-tuning → evaluation → API → UI
 - **Serving**: FastAPI backend (`/summarize` endpoint) + static HTML/JS demo UI
 
-## Architecture
+## 🧩 Architecture
 
 ```
 Raw transcript
@@ -37,7 +42,7 @@ FastAPI /summarize endpoint ── loads model once at startup
 Static HTML/JS UI ── calls the API, displays the summary
 ```
 
-## Project structure
+## 📁 Project Structure
 
 ```text
 briefgov/
@@ -63,7 +68,7 @@ briefgov/
 └── requirements.txt
 ```
 
-## Setup
+## ⚙️ Setup
 
 ```bash
 python -m venv venv
@@ -76,7 +81,7 @@ GPU notebook and downloaded separately — see `notebooks/01_explore_dataset.ipy
 for the data exploration and `src/preprocess.py` / `src/trim_targets.py` for
 the preprocessing pipeline used to build the training data.
 
-## Running the API
+## 🚀 Running the API
 
 ```bash
 uvicorn api.main:app --port 8000
@@ -84,27 +89,35 @@ uvicorn api.main:app --port 8000
 
 Test it:
 
+**PowerShell (Windows):**
 ```powershell
 $body = @{ transcript = "Your transcript text here..." } | ConvertTo-Json
 Invoke-RestMethod -Uri http://localhost:8000/summarize -Method Post -Body $body -ContentType "application/json"
 ```
 
-Or visit `http://localhost:8000/docs` for interactive API docs.
+**curl (Mac/Linux):**
+```bash
+curl -X POST http://localhost:8000/summarize \
+  -H "Content-Type: application/json" \
+  -d '{"transcript": "Your transcript text here..."}'
+```
 
-## Running the demo UI
+Or visit `http://localhost:8000/docs` for interactive Swagger API docs. 📎
+
+## 🖥️ Running the Demo UI
 
 With the API running, open `web/index.html` directly in a browser (or serve it
 with VS Code's Live Server extension). Paste a transcript and click
 **Summarize**.
 
-## Running evaluation
+## 🧪 Running Evaluation
 
 ```bash
 python src/run_evaluation.py --limit 100   # quick sample
 python src/run_evaluation.py               # full test set
 ```
 
-## Results
+## 📊 Results
 
 Evaluated on a 100-sample subset of the held-out test set (chunk-level
 source/target pairs):
@@ -116,7 +129,7 @@ source/target pairs):
 | ROUGE-L  | 35.58 |
 | ROUGE-Lsum | 35.47 |
 
-## Notes and limitations
+## ⚠️ Notes and Limitations
 
 - **Summary style**: MeetingBank's reference summaries are written in a
   formal, clerk-style register (e.g. *"Recommendation to receive supporting
@@ -135,7 +148,7 @@ source/target pairs):
 - **Chunking at inference**: longer transcripts are split into ≤1024-token
   chunks (sentence-boundary aware) and summarized independently, then joined.
 
-## Tech stack
+## 🛠️ Tech Stack
 
 Python, PyTorch, Hugging Face Transformers, Datasets, Evaluate, FastAPI,
 Kaggle (GPU fine-tuning), NLTK.
