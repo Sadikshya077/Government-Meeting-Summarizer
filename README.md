@@ -1,57 +1,141 @@
-# BriefGov: Abstractive Summarization of Government Meeting Transcripts
+# BriefGov — Government Meeting Summarizer
 
-BriefGov fine-tunes a pre-trained **BART** model to generate concise, abstractive
-summaries of long government (city council) meeting transcripts. It is trained and
-evaluated on **MeetingBank**, a public benchmark dataset of 1,366 US city council
-meetings with paired transcripts and official human-written summaries.
+BriefGov is an abstractive text summarization system for government meeting
+transcripts. It fine-tunes a BART model on the [MeetingBank](https://huggingface.co/datasets/huuuyeah/meetingbank)
+dataset to generate concise summaries of city council and public meeting
+transcripts, served through a FastAPI backend with a simple browser UI.
 
-## Problem
+## Overview
 
-Government meetings generate long, dense transcripts (avg. ~28k tokens per meeting)
-that are time-consuming for officials, staff, and the public to review. This project
-automates that process — turning a raw meeting transcript into a short, readable
-summary of the key points and decisions.
+- **Task**: abstractive summarization of long government meeting transcripts
+- **Model**: `facebook/bart-base`, fine-tuned on MeetingBank
+- **Pipeline**: transcript cleaning → chunking → greedy target alignment →
+  fine-tuning → evaluation → API → UI
+- **Serving**: FastAPI backend (`/summarize` endpoint) + static HTML/JS demo UI
 
-## Approach
+## Architecture
 
-1. **Preprocessing** — clean transcripts (remove filler words, normalize whitespace),
-   tokenize with the BART tokenizer, and split long transcripts into chunks that fit
-   within BART's 1024-token input limit.
-2. **Greedy target matching** — since reference summaries are written for the whole
-   meeting (not per-chunk), each transcript chunk is aligned with the subset of
-   summary sentences that maximizes ROUGE-1 overlap.
-3. **Fine-tuning** — `facebook/bart-base` is fine-tuned on the resulting
-   (chunk, summary) pairs using the Hugging Face `Seq2SeqTrainer`.
-4. **Evaluation** — model performance is measured with ROUGE-1, ROUGE-2, ROUGE-L,
-   and ROUGE-Lsum against held-out reference summaries.
-5. **Serving** — the fine-tuned model is exposed via a lightweight **FastAPI**
-   endpoint that accepts a transcript and returns a generated summary.
+```
+Raw transcript
+      │
+      ▼
+Clean text (remove filler words, normalize whitespace)
+      │
+      ▼
+Chunk into ≤1024-token pieces (sentence-boundary aware)
+      │
+      ▼
+Greedy ROUGE-1 alignment of summary sentences to each chunk
+      │
+      ▼
+Fine-tune facebook/bart-base (Seq2SeqTrainer, 3 epochs)
+      │
+      ▼
+FastAPI /summarize endpoint ── loads model once at startup
+      │
+      ▼
+Static HTML/JS UI ── calls the API, displays the summary
+```
 
-## Dataset
-
-[MeetingBank](https://arxiv.org/abs/2305.17529) (Hu et al., 2023) — 1,366 city council
-meetings across 6 US cities (Seattle, King County, Denver, Boston, Alameda, Long Beach),
-totaling 3,579 hours of meetings and 6,892 summarization instances. No manual data
-collection or labeling was required.
-
-## Project Structure
+## Project structure
 
 ```text
 briefgov/
-├── data/           # dataset (not tracked in git — see .gitignore)
-├── notebooks/       # exploratory analysis
-├── src/              # preprocessing, training, evaluation scripts
-├── api/               # FastAPI app for serving the model
-├── models/          # fine-tuned model checkpoints (not tracked in git)
-├── results/         # evaluation outputs, plots, logs
-├── requirements.txt
-└── README.md
+├── api/
+│   └── main.py              # FastAPI app (/summarize, /health)
+├── data/
+│   ├── train_trimmed.jsonl
+│   ├── validation_trimmed.jsonl
+│   └── test_trimmed.jsonl
+├── models/
+│   └── briefgov-bart-final/ # fine-tuned model weights + tokenizer
+├── notebooks/
+│   └── 01_explore_dataset.ipynb
+├── results/
+│   └── rouge_scores.json
+├── src/
+│   ├── preprocess.py        # cleaning, chunking, target alignment
+│   ├── trim_targets.py      # truncates over-long targets to 120 tokens
+│   ├── inference.py         # Summarizer class used by API and evaluation
+│   └── run_evaluation.py    # ROUGE evaluation on the test set
+├── web/
+│   └── index.html           # simple browser demo UI
+└── requirements.txt
 ```
 
-## Status
+## Setup
 
-🚧 In progress.
+```bash
+python -m venv venv
+venv\Scripts\Activate.ps1   # Windows PowerShell
+pip install -r requirements.txt
+```
 
-## Tech Stack
+The fine-tuned model (`models/briefgov-bart-final/`) was trained on a Kaggle
+GPU notebook and downloaded separately — see `notebooks/01_explore_dataset.ipynb`
+for the data exploration and `src/preprocess.py` / `src/trim_targets.py` for
+the preprocessing pipeline used to build the training data.
 
-Python · PyTorch · Hugging Face Transformers & Datasets · ROUGE · FastAPI
+## Running the API
+
+```bash
+uvicorn api.main:app --port 8000
+```
+
+Test it:
+
+```powershell
+$body = @{ transcript = "Your transcript text here..." } | ConvertTo-Json
+Invoke-RestMethod -Uri http://localhost:8000/summarize -Method Post -Body $body -ContentType "application/json"
+```
+
+Or visit `http://localhost:8000/docs` for interactive API docs.
+
+## Running the demo UI
+
+With the API running, open `web/index.html` directly in a browser (or serve it
+with VS Code's Live Server extension). Paste a transcript and click
+**Summarize**.
+
+## Running evaluation
+
+```bash
+python src/run_evaluation.py --limit 100   # quick sample
+python src/run_evaluation.py               # full test set
+```
+
+## Results
+
+Evaluated on a 100-sample subset of the held-out test set (chunk-level
+source/target pairs):
+
+| Metric   | Score |
+|----------|-------|
+| ROUGE-1  | 41.93 |
+| ROUGE-2  | 26.04 |
+| ROUGE-L  | 35.58 |
+| ROUGE-Lsum | 35.47 |
+
+## Notes and limitations
+
+- **Summary style**: MeetingBank's reference summaries are written in a
+  formal, clerk-style register (e.g. *"Recommendation to receive supporting
+  documentation into the record, conclude the public hearing, and..."*),
+  reflecting how government meeting minutes are actually recorded. The
+  fine-tuned model correctly adopts this style rather than producing
+  free-form plain-English summaries — this is expected behavior given the
+  training data, not a defect.
+- **Evaluation scope**: results above are on chunk-level source/target pairs
+  (the same unit the model was trained on), not full raw transcripts. This
+  is the standard evaluation unit for this pipeline but tends to score
+  higher than whole-document summarization would.
+- **Text-only input**: this version accepts transcript text directly. Audio
+  transcription (e.g. via WhisperX) is a natural extension but out of scope
+  for this version.
+- **Chunking at inference**: longer transcripts are split into ≤1024-token
+  chunks (sentence-boundary aware) and summarized independently, then joined.
+
+## Tech stack
+
+Python, PyTorch, Hugging Face Transformers, Datasets, Evaluate, FastAPI,
+Kaggle (GPU fine-tuning), NLTK.
